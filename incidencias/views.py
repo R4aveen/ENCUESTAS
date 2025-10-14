@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
-from core.models import Incidencia, Departamento
+from core.models import Incidencia, Departamento, JefeCuadrilla
 from .forms import IncidenciaForm
 # from categorias.models import Categoria, Tipo
 from django.contrib.auth.decorators import login_required
@@ -8,6 +8,14 @@ from django.contrib import messages
 from core.utils import solo_admin
 from django.core.mail import send_mail
 from django.conf import settings
+
+# ----------------- API para cargar cuadrillas por departamento -----------------
+@login_required
+def cuadrillas_por_departamento(request, departamento_id):
+    """Vista AJAX para cargar las cuadrillas de un departamento."""
+    cuadrillas = JefeCuadrilla.objects.filter(departamento_id=departamento_id)
+    data = [{'id': c.id, 'nombre_cuadrilla': str(c)} for c in cuadrillas]
+    return JsonResponse(data, safe=False)
 
 # ----------------- API para cargar tipos -----------------
 @login_required

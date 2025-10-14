@@ -1,6 +1,6 @@
 #Incidencias/forms.py -> modificaciones cotta
 from django import forms
-from core.models import Incidencia, Departamento
+from core.models import Incidencia, Departamento, JefeCuadrilla
 from django.core.exceptions import ValidationError
 
 class IncidenciaForm(forms.ModelForm):
@@ -45,6 +45,7 @@ class IncidenciaForm(forms.ModelForm):
         fields = [
             "titulo", "descripcion", "estado", "prioridad", "fecha_cierre",
             "latitud", "longitud", "departamento","nombre_vecino","correo_vecino","telefono_vecino",
+            "cuadrilla",
         ]
         widgets = {
             "titulo": forms.TextInput(attrs={"class": "form-control", "placeholder": "Título"}),
@@ -56,6 +57,7 @@ class IncidenciaForm(forms.ModelForm):
             "nombre_vecino": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre del vecino"}),
             "correo_vecino": forms.EmailInput(attrs={"class": "form-control", "placeholder": "Correo del vecino"}),
             "telefono_vecino": forms.TextInput(attrs={"class": "form-control", "placeholder": "Teléfono del vecino"}),
+            "cuadrilla": forms.Select(attrs={"class": "form-select"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -65,6 +67,15 @@ class IncidenciaForm(forms.ModelForm):
         self.fields['descripcion'].required = True
         self.fields['departamento'].required = True
         self.fields['correo_vecino'].required = True
+        
+        # La cuadrilla no es obligatoria inicialmente
+        self.fields['cuadrilla'].required = False
+        
+        # Si tenemos una instancia y un departamento seleccionado, filtramos las cuadrillas
+        if self.instance and self.instance.departamento:
+            self.fields['cuadrilla'].queryset = JefeCuadrilla.objects.filter(
+                departamento=self.instance.departamento
+            )
 
         if not self.instance or not getattr(self.instance, 'pk', None):
 

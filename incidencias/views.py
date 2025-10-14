@@ -1,7 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from core.models import Incidencia, Departamento
-from .models import ImagenIncidencia
 from .forms import IncidenciaForm
 # from categorias.models import Categoria, Tipo
 from django.contrib.auth.decorators import login_required

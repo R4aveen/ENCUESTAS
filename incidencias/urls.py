@@ -18,6 +18,7 @@ urlpatterns = [
     path("tipos/<int:pk>/editar/", views_clasificacion.tipo_editar, name="tipo_editar"),
     path("tipos/<int:pk>/toggle/", views_clasificacion.tipo_toggle, name="tipo_toggle"),
     path("tipos/<int:pk>/eliminar/", views_clasificacion.tipo_eliminar, name="tipo_eliminar"),
+    
     path("incidencias/", views.incidencias_lista, name ="incidencias_lista"),
     path("incidencias/nuevo/", views.incidencia_crear, name = "incidencia_crear"),
     path("incidencias/<int:pk>/", views.incidencia_editar, name = "incidencia_editar") ,

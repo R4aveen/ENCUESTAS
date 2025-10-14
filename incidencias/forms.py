@@ -18,7 +18,6 @@ class IncidenciaForm(forms.ModelForm):
         ('baja', 'Baja'),
     ]
     
-    # Define las transiciones permitidas entre estados
     TRANSICIONES_PERMITIDAS = {
         'pendiente': ['en_proceso'],
         'en_proceso': ['finalizada'],
@@ -61,17 +60,14 @@ class IncidenciaForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Solo muestra departamentos activos
         self.fields['departamento'].queryset = Departamento.objects.filter(estado=True)
-        # Hacer obligatorios algunos campos en el form
         self.fields['titulo'].required = True
         self.fields['descripcion'].required = True
         self.fields['departamento'].required = True
         self.fields['correo_vecino'].required = True
 
-        # Valores por defecto sólo al crear (instance sin pk)
         if not self.instance or not getattr(self.instance, 'pk', None):
-            # establecer valores iniciales
+
             self.fields['estado'].initial = 'pendiente'
             self.fields['prioridad'].initial = 'media'
 
@@ -88,13 +84,11 @@ class IncidenciaForm(forms.ModelForm):
         if not nuevo_estado:
             return "pendiente"
             
-        # Si es una nueva incidencia, solo puede estar en estado pendiente
         if not self.instance.pk:
             if nuevo_estado != 'pendiente':
                 raise ValidationError("Una nueva incidencia debe estar en estado pendiente")
             return nuevo_estado
             
-        # Si es una incidencia existente, validar la transición
         estado_actual = self.instance.estado
         if nuevo_estado not in self.TRANSICIONES_PERMITIDAS.get(estado_actual, []):
             raise ValidationError(

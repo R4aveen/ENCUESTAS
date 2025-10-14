@@ -21,11 +21,37 @@
           </div>
 
           <!-- Descripción -->
-          <div class="col-12">
-              <label for="{{ form.descripcion.id_for_label }}" class="form-label">{{ form.descripcion.label }}</label>
-              {{ form.descripcion }}
-              {% if form.descripcion.errors %}<div class="text-danger">{{ form.descripcion.errors }}</div>{% endif %}
-          </div>
+        <div class="col-12">
+            <label for="{{ form.descripcion.id_for_label }}" class="form-label">{{ form.descripcion.label }}</label>
+            {{ form.descripcion }}
+            {% if form.descripcion.errors %}<div class="text-danger">{{ form.descripcion.errors }}</div>{% endif %}
+        </div>
+
+        <!-- Datos del vecino -->
+        <div class="col-md-4">
+            <label for="{{ form.nombre_vecino.id_for_label }}" class="form-label">{{ form.nombre_vecino.label }}</label>
+            {{ form.nombre_vecino }}
+            {% if form.nombre_vecino.errors %}
+                <div class="text-danger">{{ form.nombre_vecino.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <label for="{{ form.correo_vecino.id_for_label }}" class="form-label">{{ form.correo_vecino.label }}</label>
+            {{ form.correo_vecino }}
+            {% if form.correo_vecino.errors %}
+                <div class="text-danger">{{ form.correo_vecino.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <label for="{{ form.telefono_vecino.id_for_label }}" class="form-label">{{ form.telefono_vecino.label }}</label>
+            {{ form.telefono_vecino }}
+            {% if form.telefono_vecino.errors %}
+                <div class="text-danger">{{ form.telefono_vecino.errors }}</div>
+            {% endif %}
+        </div>
+
 
           <!-- Estado (radio buttons alineados horizontalmente) -->
           <div class="col-md-6">

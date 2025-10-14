@@ -13,6 +13,14 @@
 </div>
 
 <div style="margin-top:20px;">
+  <h2>Clasificación</h2>
+  <ul>
+    <li><a href="{% url 'categoria:categoria_lista' %}">Categorías</a></li>
+    <li><a href="{% url 'incidencias:tipo_lista' %}">Tipos</a></li>
+  </ul>
+</div>
+
+<div style="margin-top:20px;">
   <h2>Otros accesos</h2>
   <ul>
     <li><a href="{% url 'personas:dashboard_territorial' %}">Dashboard Territorial</a></li>

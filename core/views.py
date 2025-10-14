@@ -7,6 +7,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import UsuarioCrearForm, UsuarioEditarForm
 from .utils import solo_admin
+from .models import Incidencia
+
+@login_required
+@solo_admin
+def dashboard_admin(request):
+    """Vista del panel de administración principal."""
+    return render(request, "personas/dashboards/admin.html")
 
 
 @login_required

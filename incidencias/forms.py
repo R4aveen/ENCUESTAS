@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 class IncidenciaForm(forms.ModelForm):
     ESTADO_CHOICES = [
         ('pendiente', 'Pendiente'),
-        ('proceso', 'En proceso'),
+        ('en_proceso', 'En proceso'),
         ('finalizada', 'Finalizada'),
         ('validada', 'Validada'),
         ('rechazada', 'Rechazada'),
@@ -17,6 +17,15 @@ class IncidenciaForm(forms.ModelForm):
         ('media', 'Media'),
         ('baja', 'Baja'),
     ]
+    
+    # Define las transiciones permitidas entre estados
+    TRANSICIONES_PERMITIDAS = {
+        'pendiente': ['en_proceso'],
+        'en_proceso': ['finalizada'],
+        'finalizada': ['validada', 'rechazada'],
+        'validada': [],
+        'rechazada': ['en_proceso']
+    }
     
     estado = forms.ChoiceField(
         choices=ESTADO_CHOICES,
@@ -36,7 +45,7 @@ class IncidenciaForm(forms.ModelForm):
         model = Incidencia
         fields = [
             "titulo", "descripcion", "estado", "prioridad", "fecha_cierre",
-            "latitud", "longitud", "departamento"
+            "latitud", "longitud", "departamento","nombre_vecino","correo_vecino","telefono_vecino",
         ]
         widgets = {
             "titulo": forms.TextInput(attrs={"class": "form-control", "placeholder": "Título"}),
@@ -45,6 +54,9 @@ class IncidenciaForm(forms.ModelForm):
             "latitud": forms.NumberInput(attrs={"class": "form-control"}),
             "longitud": forms.NumberInput(attrs={"class": "form-control"}),
             "departamento": forms.Select(attrs={"class": "form-select"}),
+            "nombre_vecino": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre del vecino"}),
+            "correo_vecino": forms.EmailInput(attrs={"class": "form-control", "placeholder": "Correo del vecino"}),
+            "telefono_vecino": forms.TextInput(attrs={"class": "form-control", "placeholder": "Teléfono del vecino"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -55,6 +67,7 @@ class IncidenciaForm(forms.ModelForm):
         self.fields['titulo'].required = True
         self.fields['descripcion'].required = True
         self.fields['departamento'].required = True
+        self.fields['correo_vecino'].required = True
 
         # Valores por defecto sólo al crear (instance sin pk)
         if not self.instance or not getattr(self.instance, 'pk', None):
@@ -71,10 +84,25 @@ class IncidenciaForm(forms.ModelForm):
         return titulo
 
     def clean_estado(self):
-        estado = self.cleaned_data.get("estado")
-        if not estado:
+        nuevo_estado = self.cleaned_data.get("estado")
+        if not nuevo_estado:
             return "pendiente"
-        return estado
+            
+        # Si es una nueva incidencia, solo puede estar en estado pendiente
+        if not self.instance.pk:
+            if nuevo_estado != 'pendiente':
+                raise ValidationError("Una nueva incidencia debe estar en estado pendiente")
+            return nuevo_estado
+            
+        # Si es una incidencia existente, validar la transición
+        estado_actual = self.instance.estado
+        if nuevo_estado not in self.TRANSICIONES_PERMITIDAS.get(estado_actual, []):
+            raise ValidationError(
+                f"No se puede cambiar el estado de '{estado_actual}' a '{nuevo_estado}'. "
+                f"Las transiciones permitidas son: {', '.join(self.TRANSICIONES_PERMITIDAS.get(estado_actual, []))}"
+            )
+        
+        return nuevo_estado
 
     def clean_prioridad(self):
         prioridad = self.cleaned_data.get("prioridad")

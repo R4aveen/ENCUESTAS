@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Categorías de Incidencias{% endblock %}
+
+{% block content %}
+<h1>Categorías de Incidencias</h1>
+
+<a href="{% url 'incidencias:categoria_crear' %}">Nueva Categoría</a>
+
+<table>
+    <tr>
+        <th>#</th>
+        <th>Nombre</th>
+        <th>Descripción</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+    </tr>
+    {% for categoria in categorias %}
+    <tr>
+        <td>{{ categoria.pk }}</td>
+        <td>{{ categoria.nombre }}</td>
+        <td>{{ categoria.descripcion }}</td>
+        <td>{{ categoria.estado|yesno:"Activo,Inactivo" }}</td>
+        <td>
+            <a href="{% url 'incidencias:categoria_editar' categoria.pk %}">Editar</a> |
+            <a href="{% url 'incidencias:categoria_eliminar' categoria.pk %}">Eliminar</a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Tipos de Incidencia{% endblock %}
+
+{% block content %}
+<h1>Tipos de Incidencia</h1>
+
+<a href="{% url 'incidencias:tipo_crear' %}">Nuevo Tipo</a>
+
+<table>
+    <tr>
+        <th>#</th>
+        <th>Categoría</th>
+        <th>Nombre</th>
+        <th>Gravedad</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+    </tr>
+    {% for tipo in tipos %}
+    <tr>
+        <td>{{ tipo.pk }}</td>
+        <td>{{ tipo.categoria }}</td>
+        <td>{{ tipo.nombre_problema }}</td>
+        <td>{{ tipo.get_tipo_gravedad_display }}</td>
+        <td>{{ tipo.estado|yesno:"Activo,Inactivo" }}</td>
+        <td>
+            <a href="{% url 'incidencias:tipo_editar' tipo.pk %}">Editar</a> |
+            <a href="{% url 'incidencias:tipo_eliminar' tipo.pk %}">Eliminar</a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

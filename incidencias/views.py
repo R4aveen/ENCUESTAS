@@ -1,9 +1,29 @@
-from core.models import Incidencia, Departamento
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
+from core.models import Incidencia, Departamento
+from .models import ImagenIncidencia
 from .forms import IncidenciaForm
+# from categorias.models import Categoria, Tipo
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from core.utils import solo_admin
+from django.core.mail import send_mail
+from django.conf import settings
+
+# ----------------- API para cargar tipos -----------------
+@login_required
+def cargar_tipos(request):
+    """Vista AJAX para cargar los tipos de una categoría."""
+    categoria_id = request.GET.get('categoria_id')
+    if not categoria_id:
+        return JsonResponse({'tipos': []})
+    
+    tipos = Tipo.objects.filter(
+        categoria_id=categoria_id,
+        activo=True
+    ).values('id', 'nombre', 'prioridad_predeterminada')
+    
+    return JsonResponse({'tipos': list(tipos)})
 
 # ----------------- Ayudantes de filtrado por rol -----------------
 def _roles_usuario(user):
@@ -106,19 +126,94 @@ def incidencia_crear(request):
 
 
 @login_required
-@solo_admin
 def incidencia_editar(request, pk):
     incidencia = get_object_or_404(Incidencia, pk=pk)
+    estado_anterior = incidencia.estado
+    motivo_rechazo = request.POST.get('motivo_rechazo')
+    roles = set(request.user.groups.values_list("name", flat=True))
+
     if request.method == "POST":
         form = IncidenciaForm(request.POST, instance=incidencia)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Incidencia actualizada correctamente.")
+            nuevo_estado = form.cleaned_data['estado']
+            
+            # Validar permisos según el rol y el cambio de estado
+            puede_cambiar = False
+            
+            if request.user.is_superuser or 'Administrador' in roles:
+                puede_cambiar = True
+            elif 'Territorial' in roles:
+                # Territorial solo puede crear (pendiente) y validar/rechazar finalizadas
+                if estado_anterior == 'finalizada' and nuevo_estado in ['validada', 'rechazada']:
+                    puede_cambiar = True
+            elif 'Departamento' in roles:
+                # Departamento solo puede poner en proceso las pendientes
+                if estado_anterior == 'pendiente' and nuevo_estado == 'en_proceso':
+                    puede_cambiar = True
+            elif 'Jefe de Cuadrilla' in roles:
+                # Cuadrilla solo puede finalizar las que están en proceso
+                if estado_anterior == 'en_proceso' and nuevo_estado == 'finalizada':
+                    puede_cambiar = True
+                    
+            if not puede_cambiar:
+                messages.error(request, "No tienes permisos para realizar este cambio de estado.")
+                return redirect("incidencias:incidencias_lista")
+            
+            incidencia = form.save(commit=False)
+            
+            # Si se está rechazando la incidencia, guardar el motivo
+            if incidencia.estado == 'rechazada' and motivo_rechazo:
+                incidencia.motivo_rechazo = motivo_rechazo
+            
+            incidencia.save()
+
+            if incidencia.estado != estado_anterior:
+                departamento = incidencia.departamento
+                if departamento and departamento.encargado and departamento.encargado.user.email:
+                    destinatario = departamento.encargado.user.email
+                else:
+                    destinatario = "soporte@municipalidad.local"
+
+                remitente = (
+                    request.user.email
+                    if request.user.email
+                    else "no-reply@municipalidad.local"
+                )
+
+                asunto = f"[Notificación] Estado actualizado de incidencia: {incidencia.titulo}"
+                cuerpo = (
+                    f"Estimado/a {departamento.encargado},\n\n"
+                    f"El usuario {request.user.get_full_name() or request.user.username} "
+                    f"ha cambiado el estado de la incidencia '{incidencia.titulo}'.\n\n"
+                    f"Estado anterior: {estado_anterior}\n"
+                    f"Nuevo estado: {incidencia.estado}\n\n"
+                    f"Departamento: {departamento.nombre_departamento if departamento else 'No asignado'}\n"
+                    f"Descripción: {incidencia.descripcion}\n"
+                    f"Fecha del cambio: {incidencia.actualizadoEl.strftime('%d-%m-%Y %H:%M')}\n\n"
+                    "Saludos cordiales,\n"
+                    "Sistema Municipal de Incidencias"
+                )
+
+                send_mail(
+                    asunto,
+                    cuerpo,
+                    remitente,
+                    [destinatario],
+                    fail_silently=False,
+                )
+
+                messages.success(
+                    request,
+                    f"Incidencia actualizada. Se notificó a {departamento.encargado} ({destinatario})."
+                )
+            else:
+                messages.success(request, "Incidencia actualizada correctamente.")
+
             return redirect("incidencias:incidencias_lista")
     else:
         form = IncidenciaForm(instance=incidencia)
-    return render(request, "incidencias/incidencia_form.html", {"form": form})
 
+    return render(request, "incidencias/incidencia_form.html", {"form": form})
 
 @login_required
 @solo_admin

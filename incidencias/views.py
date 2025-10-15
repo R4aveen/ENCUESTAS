@@ -1,15 +1,18 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
-from core.models import Incidencia, Departamento, JefeCuadrilla
-from .forms import IncidenciaForm
+from core.models import Incidencia, Departamento, JefeCuadrilla, Multimedia
+from .forms import IncidenciaForm, SubirEvidenciaForm
 # from categorias.models import Categoria, Tipo
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from core.utils import solo_admin
 from django.core.mail import send_mail
 from django.conf import settings
+from django.core.files.storage import default_storage
+import os
+from datetime import datetime
 
-# ----------------- API para cargar cuadrillas por departamento -----------------
+# ----------------- intento de API para cargar cuadrillas por departamento -----------------
 @login_required
 def cuadrillas_por_departamento(request, departamento_id):
     """Vista AJAX para cargar las cuadrillas de un departamento."""
@@ -17,7 +20,7 @@ def cuadrillas_por_departamento(request, departamento_id):
     data = [{'id': c.id, 'nombre_cuadrilla': str(c)} for c in cuadrillas]
     return JsonResponse(data, safe=False)
 
-# ----------------- API para cargar tipos -----------------
+# ----------------- intento de API 2 sjsj para cargar tipos -----------------
 @login_required
 def cargar_tipos(request):
     """Vista AJAX para cargar los tipos de una categoría."""
@@ -42,7 +45,7 @@ def _filtrar_por_rol(qs, user):
     Reglas:
       - Admin (is_superuser) o grupo 'Administrador' y 'Dirección' ven todo.
       - 'Departamento' ve todo.
-      - 'Jefe de Cuadrilla' -> solo pendiente y en_proceso.
+      - 'Jefe de Cuadrilla' -> solo incidencias de sus cuadrillas (pendiente y en_proceso).
       - 'Territorial' -> solo pendiente.
       - Sin grupo -> solo incidencias asociadas a su email.
     """
@@ -55,31 +58,56 @@ def _filtrar_por_rol(qs, user):
         return qs
 
     if "Jefe de Cuadrilla" in roles:
-        return qs.filter(estado__in=["pendiente", "en_proceso"])
+        # Filtrar todas las incidencias de las cuadrillas donde el usuario es usuario o encargado
+        from core.models import JefeCuadrilla
+        from django.db.models import Q
+        try:
+            profile = user.profile
+            cuadrillas = JefeCuadrilla.objects.filter(
+                Q(usuario=profile) | Q(encargado=profile)
+            )
+            return qs.filter(
+                cuadrilla__in=cuadrillas
+            )
+        except:
+            return qs.none()
 
     if "Territorial" in roles:
-        return qs.filter(estado="pendiente")
+            # Solo incidencias pendientes de cuadrillas donde el usuario es jefe o encargado
+            from core.models import JefeCuadrilla
+            from django.db.models import Q
+            try:
+                profile = user.profile
+                cuadrillas = JefeCuadrilla.objects.filter(
+                    Q(usuario=profile) | Q(encargado=profile)
+                )
+                return qs.filter(
+                    cuadrilla__in=cuadrillas,
+                    estado="pendiente"
+                )
+            except:
+                return qs.none()
 
     # Sin rol: solo ve las suyas (por email)
     return qs.filter(email_usuario=user.email)
 
 
-# ----------------- LISTA / DETALLE (abierto a usuarios logueados) -----------------
+# ----------------- LISTA / DETALLE (abiertao a usuarios logueadoops) -----------------
 @login_required
 def incidencias_lista(request):
     q = (request.GET.get("q") or "").strip()
     estado = request.GET.get("estado")  # 'pendiente' | 'en_proceso' | 'resuelto' | None
-    departamento_id = request.GET.get("departamento") #nuevo filtro
+    departamento_id = request.GET.get("departamento") #novo filtrasaon
     qs = Incidencia.objects.all().order_by("-creadoEl")
 
-    # Filtro por texto
+    # Filtro por string yiaa
     if q:
         qs = qs.filter(titulo__icontains=q)
 
     # Filtro por rol
     qs = _filtrar_por_rol(qs, request.user)
 
-    # Filtro por estado
+    # Filtro por status
     estados_validos = [e[0] for e in IncidenciaForm.ESTADO_CHOICES]
     if estado in estados_validos:
         qs = qs.filter(estado=estado)
@@ -88,7 +116,7 @@ def incidencias_lista(request):
     if departamento_id:
         qs = qs.filter(departamento_id =departamento_id)
 
-    #etiquetas de colores para cada estado
+    #etiquetas de colores para cada estadoa
     ESTADOS_COLORES = {
     "pendiente": "secondary",
     "en proceso": "warning",
@@ -109,7 +137,7 @@ def incidencias_lista(request):
 @login_required
 def incidencia_detalle(request, pk):
     incidencia = get_object_or_404(Incidencia, pk=pk)
-    # protección de acceso al detalle según rol
+    # proteccion de acceso al detalle según rol
     visible = _filtrar_por_rol(Incidencia.objects.filter(pk=pk), request.user).exists()
     if not visible:
         messages.error(request, "No tienes permisos para ver esta incidencia.")
@@ -231,3 +259,166 @@ def incidencia_eliminar(request, pk):
         messages.success(request, "Incidencia eliminada correctamente.")
         return redirect("incidencias:incidencias_lista")
     return render(request, "incidencias/incidencia_eliminar.html", {"obj": obj})
+
+
+# ----------------- SUBIR EVIDENCIAAA -----------------
+@login_required
+def subir_evidencia(request, pk):
+    """
+    Vista para que el Jefe de Cuadrilla asignado suba evidencia y finalice la incidencia.
+    Solo la cuadrilla asignada puede acceder.
+    """
+    incidencia = get_object_or_404(Incidencia, pk=pk)
+    roles = set(request.user.groups.values_list("name", flat=True))
+    
+    # DEBUG: Agregar información de depuración
+    print(f"\n{'='*60}")
+    print(f"DEBUG - SUBIR EVIDENCIA")
+    print(f"Usuario: {request.user.username}")
+    print(f"Grupos del usuario: {list(roles)}")
+    print(f"Es superuser: {request.user.is_superuser}")
+    print(f"Incidencia: #{incidencia.id} - {incidencia.titulo}")
+    print(f"Estado incidencia: {incidencia.estado}")
+    print(f"Cuadrilla asignada: {incidencia.cuadrilla}")
+    try:
+        print(f"Profile del usuario: {request.user.profile}")
+        if incidencia.cuadrilla:
+            print(f"Usuario de cuadrilla: {incidencia.cuadrilla.usuario}")
+            print(f"Encargado de cuadrilla: {incidencia.cuadrilla.encargado}")
+            print(f"¿Coincide con usuario?: {incidencia.cuadrilla.usuario == request.user.profile}")
+            print(f"¿Coincide con encargado?: {incidencia.cuadrilla.encargado == request.user.profile}")
+    except Exception as e:
+        print(f"ERROR al obtener profile: {e}")
+    print(f"{'='*60}\n")
+    
+    # Validación 1: Solo usuarios con rol "Jefe de Cuadrilla", "Cuadrilla" o "Administrador" pueden acceder
+    if not (request.user.is_superuser or "Jefe de Cuadrilla" in roles or "Cuadrilla" in roles or "Administrador" in roles):
+        messages.error(request, f"No tienes permisos para subir evidencia. Tus grupos son: {list(roles)}")
+        return redirect("incidencias:incidencias_lista")
+    
+    # Validación 2: Solo la cuadrilla asignada puede subir evidencia
+    if not request.user.is_superuser and "Administrador" not in roles:
+        if not incidencia.cuadrilla:
+            messages.error(request, "Esta incidencia no tiene cuadrilla asignada.")
+            return redirect("incidencias:incidencias_lista")
+        # Verificar que el usuario pertenece a la cuadrilla asignada
+        try:
+            usuario_es_de_cuadrilla = (
+                incidencia.cuadrilla.usuario == request.user.profile or
+                incidencia.cuadrilla.encargado == request.user.profile
+            )
+        except Exception as e:
+            messages.error(request, f"Error al verificar perfil: {e}. Contacta al administrador.")
+            return redirect("incidencias:incidencias_lista")
+            
+        if not usuario_es_de_cuadrilla:
+            messages.error(
+                request,
+                f"Solo la cuadrilla '{incidencia.cuadrilla.nombre_cuadrilla}' puede subir evidencia. "
+                f"Tu perfil no coincide con el usuario o encargado de esta cuadrilla."
+            )
+            return redirect("incidencias:incidencias_lista")
+    
+    # Validación 3: Solo se puede subir evidencia si está en estado "en_proceso"
+    if incidencia.estado != "en_proceso":
+        messages.warning(
+            request,
+            f"Solo se puede subir evidencia cuando la incidencia está 'En proceso'. Estado actual: {incidencia.estado}"
+        )
+        return redirect("incidencias:incidencia_detalle", pk=pk)
+    
+    if request.method == "POST":
+        form = SubirEvidenciaForm(request.POST, request.FILES)
+        if form.is_valid():
+            archivo = form.cleaned_data['archivo']
+            nombre = form.cleaned_data.get('nombre') or archivo.name
+            
+            # Crear directorio si no existe
+            upload_path = 'evidencias/'
+            os.makedirs(os.path.join(settings.MEDIA_ROOT, upload_path), exist_ok=True)
+            
+            # Guardar archivo con un nombre único
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            nombre_archivo = f"{timestamp}_{archivo.name}"
+            ruta_completa = os.path.join(upload_path, nombre_archivo)
+            ruta_guardada = default_storage.save(ruta_completa, archivo)
+            
+            # Crear registro en Multimedia
+            multimedia = Multimedia.objects.create(
+                nombre=nombre,
+                url=settings.MEDIA_URL + ruta_guardada,
+                tipo=archivo.content_type.split('/')[0],
+                formato=archivo.name.split('.')[-1],
+                incidencia=incidencia
+            )
+            
+            # NO cambiar automáticamente a finalizada - permitir subir múltiples evidencias
+            # La cuadrilla debe finalizar manualmente cuando termine
+            
+            messages.success(
+                request,
+                f"Evidencia '{nombre}' subida correctamente. Puedes subir más evidencias o finalizar la incidencia cuando termines."
+            )
+            return redirect("incidencias:incidencia_detalle", pk=pk)
+    else:
+        form = SubirEvidenciaForm()
+    
+    ctx = {
+        'form': form,
+        'incidencia': incidencia
+    }
+    return render(request, "incidencias/subir_evidencia.html", ctx)
+
+
+# ----------------- FINALAIZAR INCIDENCIAAS -----------------
+@login_required
+def finalizar_incidencia(request, pk):
+    """
+    Vista para que la cuadrilla marque una incidencia como finalizada después de subir evidencias.
+    """
+    incidencia = get_object_or_404(Incidencia, pk=pk)
+    roles = set(request.user.groups.values_list("name", flat=True))
+    
+    # Validación 1: Solo cuadrillas o admin
+    if not (request.user.is_superuser or "Jefe de Cuadrilla" in roles or "Cuadrilla" in roles or "Administrador" in roles):
+        messages.error(request, "No tienes permisos para finalizar incidencias.")
+        return redirect("incidencias:incidencias_lista")
+    
+    # Validación 2: Solo la auadrilla asignada
+    if not request.user.is_superuser and "Administrador" not in roles:
+        if not incidencia.cuadrilla:
+            messages.error(request, "Esta incidencia no tiene cuadrilla asignada.")
+            return redirect("incidencias:incidencias_lista")
+        
+        try:
+            usuario_es_de_cuadrilla = (
+                incidencia.cuadrilla.usuario == request.user.profile or
+                incidencia.cuadrilla.encargado == request.user.profile
+            )
+        except Exception as e:
+            messages.error(request, f"Error al verificar perfil: {e}")
+            return redirect("incidencias:incidencias_lista")
+            
+        if not usuario_es_de_cuadrilla:
+            messages.error(request, f"Solo la cuadrilla '{incidencia.cuadrilla.nombre_cuadrilla}' puede finalizar esta incidencia.")
+            return redirect("incidencias:incidencias_lista")
+    
+    # Validación 3: Debe estar en "en_proceso"
+    if incidencia.estado != "en_proceso":
+        messages.warning(request, f"Solo se pueden finalizar incidencias en estado 'En proceso'. Estado actual: {incidencia.estado}")
+        return redirect("incidencias:incidencia_detalle", pk=pk)
+    
+    # Validación 4: Debe tener al menos una evidencia
+    if not incidencia.multimedias.exists():
+        messages.error(request, "Debes subir al menos una evidencia antes de finalizar la incidencia.")
+        return redirect("incidencias:subir_evidencia", pk=pk)
+    
+    # Finalizar incidencia
+    incidencia.estado = "finalizada"
+    incidencia.save()
+    
+    messages.success(
+        request,
+        f"¡Incidencia finalizada correctamente! El territorial ahora puede validar o rechazar el trabajo realizado."
+    )
+    return redirect("incidencias:incidencia_detalle", pk=pk)

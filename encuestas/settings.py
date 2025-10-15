@@ -1,18 +1,16 @@
+
 from pathlib import Path
 import os
-from dotenv import load_dotenv
-
-# Cargar variables desde .env
-load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ------------------ DJANGO ------------------
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "cambia-esta-clave-en-produccion")
-DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() == "true"
+
+DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
+
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
-# ------------------ APPS ------------------
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -29,7 +27,6 @@ INSTALLED_APPS = [
     "personas",
 ]
 
-# ------------------ MIDDLEWARE ------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -60,21 +57,20 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "encuestas.wsgi.application"
 
-# ------------------ BASE DE DATOS ------------------
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB"),
-        "USER": os.getenv("POSTGRES_USER"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-        "HOST": os.getenv("POSTGRES_HOST"),
-        "PORT": os.getenv("POSTGRES_PORT"),
+        "NAME": ("muni"),
+        "USER": ("postgres"),
+        "PASSWORD": ("postgres"),
+        "HOST": ("localhost"),
+        "PORT": ("5433"), ## Cambiar al puerto 5432
         "CONN_MAX_AGE": 60,
         "CONN_HEALTH_CHECKS": True,
     }
 }
 
-# ------------------ VALIDADORES ------------------
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -82,24 +78,33 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# ------------------ INTERNACIONALIZACIÓN ------------------
 LANGUAGE_CODE = "es-cl"
 TIME_ZONE = "America/Santiago"
 USE_I18N = True
 USE_TZ = True
 
-# ------------------ ESTÁTICOS ------------------
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else []
 
+# Media files (uploads)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# ------------------ LOGIN ------------------
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/personas/check_profile/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 
-# ------------------ EMAIL ------------------
+
+# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# EMAIL_HOST = "smtp.gmail.com"
+# EMAIL_USE_TLS = True
+# EMAIL_PORT = 587
+# EMAIL_HOST_USER = ("EMAIL_HOST_USER", "tu-correo@gmail.com")
+# EMAIL_HOST_PASSWORD = ("EMAIL_HOST_PASSWORD", "tu-password")
+# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "Sistema Municipal <no-reply@municipalidad.local>"

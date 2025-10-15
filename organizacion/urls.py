@@ -15,4 +15,7 @@ urlpatterns = [
     path("departamento/<int:pk>/", views.departamento_editar, name="departamento_editar"),
     path("departamento/<int:pk>/detalle/", views.departamento_detalle, name="departamento_detalle"),
     path("departamento/<int:pk>/eliminar/", views.departamento_eliminar, name="departamento_eliminar"),
+    
+    # Asignación de cuadrillas
+    path("asignar-cuadrilla/<int:pk>/", views.asignar_cuadrilla_view, name="asignar_cuadrilla"),
 ]

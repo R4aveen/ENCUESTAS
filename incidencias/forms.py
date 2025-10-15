@@ -71,11 +71,21 @@ class IncidenciaForm(forms.ModelForm):
         # La cuadrilla no es obligatoria inicialmente
         self.fields['cuadrilla'].required = False
         
-        # Si tenemos una instancia y un departamento seleccionado, filtramos las cuadrillas
-        if self.instance and self.instance.departamento:
-            self.fields['cuadrilla'].queryset = JefeCuadrilla.objects.filter(
+        # Filtrar cuadrillas según el departamento
+        if self.instance and self.instance.pk and self.instance.departamento:
+            # Si la instancia ya existe y tiene departamento, filtrar por ese departamento
+            cuadrillas_disponibles = JefeCuadrilla.objects.filter(
                 departamento=self.instance.departamento
             )
+            # Si la instancia tiene una cuadrilla asignada, incluirla aunque no esté en el filtro
+            if self.instance.cuadrilla and self.instance.cuadrilla not in cuadrillas_disponibles:
+                cuadrillas_disponibles = cuadrillas_disponibles | JefeCuadrilla.objects.filter(
+                    pk=self.instance.cuadrilla.pk
+                )
+            self.fields['cuadrilla'].queryset = cuadrillas_disponibles
+        else:
+            # Para nuevas incidencias, mostrar todas las cuadrillas
+            self.fields['cuadrilla'].queryset = JefeCuadrilla.objects.all()
 
         if not self.instance or not getattr(self.instance, 'pk', None):
 
@@ -118,8 +128,57 @@ class IncidenciaForm(forms.ModelForm):
     def save(self, commit=True):
         incidencia = super().save(commit=False)
         incidencia.titulo = incidencia.titulo.strip()
+        
+        # Preservar la cuadrilla si no se cambió en el formulario
+        if self.instance.pk and 'cuadrilla' not in self.changed_data:
+            # Si la cuadrilla no cambió, mantener la original
+            if self.instance.cuadrilla:
+                incidencia.cuadrilla = self.instance.cuadrilla
+        
         if commit:
             incidencia.save()
         return incidencia
 
 
+class SubirEvidenciaForm(forms.Form):
+    """
+    Formulario para subir evidencia multimedia de una incidencia.
+    La evidencia se asociará al modelo Multimedia relacionado con la incidencia.
+    """
+    archivo = forms.FileField(
+        label="Archivo de evidencia",
+        required=True,
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/*,video/*,application/pdf'
+        }),
+        help_text="Formatos permitidos: imágenes, videos, PDF. Tamaño máximo: 10MB"
+    )
+    
+    nombre = forms.CharField(
+        max_length=100,
+        label="Nombre de la evidencia",
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ej: Foto del problema resuelto'
+        })
+    )
+    
+    def clean_archivo(self):
+        archivo = self.cleaned_data.get('archivo')
+        if archivo:
+            # Validar tamaño del archivo (10MB máximo)
+            if archivo.size > 10 * 1024 * 1024:
+                raise ValidationError("El archivo no puede superar los 10MB")
+            
+            # Validar tipo de archivo
+            tipo_permitido = [
+                'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+                'video/mp4', 'video/mpeg', 'video/quicktime',
+                'application/pdf'
+            ]
+            if archivo.content_type not in tipo_permitido:
+                raise ValidationError("Tipo de archivo no permitido")
+        
+        return archivo

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load auth_extras %}
 
 {% block title %}Panel Territorial - Incidencias{% endblock %}
 
@@ -66,8 +67,12 @@
               <span class="badge bg-secondary">Pendiente</span>
             {% elif incidencia.estado == 'en_proceso' %}
               <span class="badge bg-warning text-dark">En proceso</span>
-            {% elif incidencia.estado == 'resuelto' %}
-              <span class="badge bg-success">Resuelto</span>
+            {% elif incidencia.estado == 'finalizada' %}
+              <span class="badge bg-success">Finalizada</span>
+            {% elif incidencia.estado == 'validada' %}
+              <span class="badge bg-info">Validada</span>
+            {% elif incidencia.estado == 'rechazada' %}
+              <span class="badge bg-danger">Rechazada</span>
             {% else %}
               {{ incidencia.estado }}
             {% endif %}
@@ -89,10 +94,35 @@
             {% endif %}
           </td>
           <td class="d-flex gap-2">
-            <a href="{% url 'incidencias:incidencia_editar' incidencia.id %}" class="btn btn-sm btn-info">✏️ Editar</a>
-            <a href="{% url 'territorial_app:validar_incidencia' incidencia.id %}" class="btn btn-sm btn-success">✅ Validar</a>
-            <a href="{% url 'territorial_app:rechazar_incidencia' incidencia.id %}" class="btn btn-sm btn-danger">❌ Rechazar</a>
-            <a href="{% url 'territorial_app:reasignar_incidencia' incidencia.id %}" class="btn btn-sm btn-warning">🔄 Reasignar</a>
+            <a href="{% url 'incidencias:incidencia_detalle' incidencia.id %}" class="btn btn-sm btn-primary">👁️ Ver</a>
+            {% if incidencia.estado == 'pendiente' or incidencia.estado == 'en_proceso' %}
+              {% if user.is_superuser %}
+                <a href="{% url 'incidencias:incidencia_editar' incidencia.id %}" class="btn btn-sm btn-info">✏️ Editar</a>
+              {% elif 'Administrador' in user.groups.values_list.name %}
+                <a href="{% url 'incidencias:incidencia_editar' incidencia.id %}" class="btn btn-sm btn-info">✏️ Editar</a>
+              {% elif 'Jefe de Cuadrilla' in user.groups.values_list.name %}
+                <a href="{% url 'incidencias:incidencia_editar' incidencia.id %}" class="btn btn-sm btn-info">✏️ Editar</a>
+              {% endif %}
+            {% endif %}
+            {% if incidencia.estado == 'en_proceso' and incidencia.cuadrilla %}
+              {% if user.is_superuser or user|has_group:"Administrador" or user|has_group:"Jefe de Cuadrilla" or user|has_group:"Cuadrilla" %}
+                <a href="{% url 'incidencias:subir_evidencia' incidencia.id %}" class="btn btn-sm btn-success">📤 Subir evidencia</a>
+              {% endif %}
+              
+              <!-- Botón finalizar si ya tiene evidencias -->
+              {% if incidencia.multimedias.exists %}
+                {% if user.is_superuser or user|has_group:"Administrador" or user|has_group:"Jefe de Cuadrilla" or user|has_group:"Cuadrilla" %}
+                  <a href="{% url 'incidencias:finalizar_incidencia' incidencia.id %}" class="btn btn-sm btn-primary" onclick="return confirm('¿Finalizar esta incidencia?')">✅ Finalizar</a>
+                {% endif %}
+              {% endif %}
+            {% endif %}
+            {% if 'Territorial' in user.groups.values_list.name %}
+              {% if incidencia.estado == 'pendiente' or incidencia.estado == 'en_proceso' %}
+                <a href="{% url 'territorial_app:validar_incidencia' incidencia.id %}" class="btn btn-sm btn-success">✅ Validar</a>
+                <a href="{% url 'territorial_app:rechazar_incidencia' incidencia.id %}" class="btn btn-sm btn-danger">❌ Rechazar</a>
+                <a href="{% url 'territorial_app:reasignar_incidencia' incidencia.id %}" class="btn btn-sm btn-warning">🔄 Reasignar</a>
+              {% endif %}
+            {% endif %}
           </td>
         </tr>
       {% empty %}

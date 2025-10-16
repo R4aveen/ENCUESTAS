@@ -79,52 +79,16 @@ class Multimedia(models.Model):
         return self.nombre
 
 
-class CategoriaIncidencia(models.Model):
-    nombre = models.CharField(max_length=100, verbose_name="Nombre Categoría")
-    descripcion = models.TextField(verbose_name="Descripción")
-    estado = models.BooleanField(default=True, verbose_name="Activo")
-    creadoEl = models.DateTimeField(auto_now_add=True)
-    actualizadoEl = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = "Categoría de Incidencia"
-        verbose_name_plural = "Categorías de Incidencias"
-        ordering = ['nombre']
-
-    def __str__(self):
-        return self.nombre
-
 class TipoIncidencia(models.Model):
-    GRAVEDAD_CHOICES = [
-        ('A', 'Alta'),
-        ('M', 'Media'),
-        ('B', 'Baja')
-    ]
-
-    nombre_problema = models.CharField(max_length=100, verbose_name="Nombre del Problema")
-    descripcion = models.TextField(verbose_name="Descripción")
+    nombre_problema = models.CharField(max_length=100)
+    descripcion = models.TextField()
     tipo_gravedad = models.CharField(
         max_length=1,
-        choices=GRAVEDAD_CHOICES,
-        verbose_name="Gravedad"
+        choices=[('A', 'Alta'), ('M', 'Media'), ('B', 'Baja')]
     )
-    categoria = models.ForeignKey(
-        CategoriaIncidencia, 
-        on_delete=models.CASCADE,
-        verbose_name="Categoría",
-        related_name='tipos_incidencia'
-    )
-    estado = models.BooleanField(default=True, verbose_name="Activo")
-    creadoEl = models.DateTimeField(auto_now_add=True)
-    actualizadoEl = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = "Tipo de Incidencia"
-        verbose_name_plural = "Tipos de Incidencias"
-        ordering = ['categoria', 'nombre_problema']
 
     def __str__(self):
-        return f"{self.categoria} - {self.nombre_problema}"
+        return self.nombre_problema
 
 
 class JefeCuadrilla(models.Model):

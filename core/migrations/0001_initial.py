@@ -14,22 +14,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='CategoriaIncidencia',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nombre', models.CharField(max_length=100, verbose_name='Nombre Categoría')),
-                ('descripcion', models.TextField(verbose_name='Descripción')),
-                ('estado', models.BooleanField(default=True, verbose_name='Activo')),
-                ('creadoEl', models.DateTimeField(auto_now_add=True)),
-                ('actualizadoEl', models.DateTimeField(auto_now=True)),
-            ],
-            options={
-                'verbose_name': 'Categoría de Incidencia',
-                'verbose_name_plural': 'Categorías de Incidencias',
-                'ordering': ['nombre'],
-            },
-        ),
-        migrations.CreateModel(
             name='Perfil',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
@@ -163,18 +147,11 @@ class Migration(migrations.Migration):
             name='TipoIncidencia',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nombre_problema', models.CharField(max_length=100, verbose_name='Nombre del Problema')),
-                ('descripcion', models.TextField(verbose_name='Descripción')),
-                ('tipo_gravedad', models.CharField(choices=[('A', 'Alta'), ('M', 'Media'), ('B', 'Baja')], max_length=1, verbose_name='Gravedad')),
-                ('estado', models.BooleanField(default=True, verbose_name='Activo')),
-                ('creadoEl', models.DateTimeField(auto_now_add=True)),
-                ('actualizadoEl', models.DateTimeField(auto_now=True)),
-                ('categoria', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tipos_incidencia', to='core.categoriaincidencia', verbose_name='Categoría')),
+                ('nombre_problema', models.CharField(max_length=100)),
+                ('descripcion', models.TextField()),
+                ('tipo_gravedad', models.CharField(choices=[('A', 'Alta'), ('M', 'Media'), ('B', 'Baja')], max_length=1)),
             ],
             options={
-                'verbose_name': 'Tipo de Incidencia',
-                'verbose_name_plural': 'Tipos de Incidencias',
-                'ordering': ['categoria', 'nombre_problema'],
             },
         ),
         migrations.AddField(

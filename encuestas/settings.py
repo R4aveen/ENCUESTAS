@@ -63,9 +63,9 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": ("muni"),
         "USER": ("postgres"),
-        "PASSWORD": ("postgres"),
+        "PASSWORD": ("root"),
         "HOST": ("localhost"),
-        "PORT": ("5433"), ## Cambiar al puerto 5432
+        "PORT": ("5432"),
         "CONN_MAX_AGE": 60,
         "CONN_HEALTH_CHECKS": True,
     }
@@ -85,10 +85,6 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else []
-
-# Media files (uploads)
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
